@@ -1,0 +1,27 @@
+---
+title: "final-project"
+author: "Erika Cui"
+date: "2023-12-04"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+Combine two data sets into one data frame. Clean and merge it.
+
+```{r}
+housing <- read_delim("../data/USA_Housing.csv")
+head(housing)
+```
+```{r}
+counties <- read_delim("../data/counties_per_capita_income.csv")
+head(counties)
+```
+
+
+Create additonal columns. One new categorical variable, one new continuos/numerical variable, one summarization data frame.
