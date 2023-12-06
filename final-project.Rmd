@@ -73,24 +73,6 @@ merge2
 
 ```
 
-```{r}
-filteredMergedData1 <- mergedData1 %>% 
-  group_by(states, pci) %>% 
-  summarize(avg_price = mean(avg_price, na.rm = TRUE)) %>% 
-  group_by(states) %>% 
-  summarize(pci = first(pci), avg_price = mean(avg_price, na.rm = TRUE)) %>% 
-  filter(!is.nan(avg_price))
-
-filteredMergedData1
-```
-
-
-
-
-```{r}
-mergedData2 <- inner_join(salePrice, filteredMergedData1, by = "states")
-mergedData2
-```
 
 
 
