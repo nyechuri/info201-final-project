@@ -15,13 +15,83 @@ library(ggplot2)
 Combine two data sets into one data frame. Clean and merge it.
 
 ```{r}
-housing <- read_delim("../data/USA_Housing.csv")
-head(housing)
+salePriceData <- read_delim("../data/Sale_Prices_State.csv")
+
+salePrice <- salePriceData %>% 
+  select(RegionName, `2020-02`) %>% 
+  rename(states = RegionName, price = `2020-02`)
+  salePrice
 ```
 ```{r}
-counties <- read_delim("../data/counties_per_capita_income.csv")
-head(counties)
+countiesData <- read_delim("../data/counties_per_capita_income.csv")
+
+pciData <- countiesData %>% 
+  select(states, pci)
+head(pciData)
 ```
+
+
+
+```{r}
+reData <- read_delim("../data/realtor-data.zip.csv.zip")
+
+realEstate <- reData %>%
+  rename(states = state, price = price) %>% 
+  select(states, price) %>%
+  filter(states != "Puerto Rico")
+
+head(realEstate)
+```
+
+```{r}
+realEstateAvg <- realEstate %>% 
+  group_by(states) %>% 
+  summarize(avg_price = mean(price)) %>% 
+  filter(!is.na(avg_price))
+realEstateAvg
+```
+```{r}
+merge1 <- full_join(salePrice, realEstateAvg, by = "states")
+
+merge1$avg_price[is.na(merge1$avg_price)] <- merge1$price[is.na(merge1$avg_price)]
+
+merge1$avg_price[!is.na(merge1$price) & !is.na(merge1$avg_price)] <- 
+  (merge1$price[!is.na(merge1$price) & !is.na(merge1$avg_price)] +
+  merge1$avg_price[!is.na(merge1$price) & !is.na(merge1$avg_price)]) / 2
+
+merge1 <- merge1 %>% 
+  arrange(states) %>% 
+  select(states, avg_price)
+
+merge1
+```
+
+
+```{r}
+merge2 <- left_join(pciData, merge1, by = "states")
+merge2
+
+```
+
+```{r}
+filteredMergedData1 <- mergedData1 %>% 
+  group_by(states, pci) %>% 
+  summarize(avg_price = mean(avg_price, na.rm = TRUE)) %>% 
+  group_by(states) %>% 
+  summarize(pci = first(pci), avg_price = mean(avg_price, na.rm = TRUE)) %>% 
+  filter(!is.nan(avg_price))
+
+filteredMergedData1
+```
+
+
+
+
+```{r}
+mergedData2 <- inner_join(salePrice, filteredMergedData1, by = "states")
+mergedData2
+```
+
 
 
 Create additonal columns. One new categorical variable, one new continuos/numerical variable, one summarization data frame.
