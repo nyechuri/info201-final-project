@@ -69,6 +69,14 @@ merge1
 
 ```{r}
 merge2 <- left_join(pciData, merge1, by = "states")
+
+merge2$pci <- as.numeric(gsub("[^0-9.]", "", merge2$pci))
+
+merge2 <- merge2 %>% 
+  group_by(states) %>% 
+  summarize(avg_pci = mean(pci, na.rm = TRUE)) %>% 
+  filter(states != "American Samoa")
+
 merge2
 
 ```
