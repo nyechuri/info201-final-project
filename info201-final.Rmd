@@ -10,6 +10,7 @@ library(tidyverse)
 library(readr)
 library(dplyr)
 library(ggplot2)
+library(ggrepel)
 ```
 
 Combine two data sets into one data frame. Clean and merge it.
@@ -75,11 +76,70 @@ merge2$pci <- as.numeric(gsub("[^0-9.]", "", merge2$pci))
 merge2 <- merge2 %>% 
   group_by(states) %>% 
   summarize(avg_pci = mean(pci, na.rm = TRUE)) %>% 
-  filter(states != "American Samoa")
+  filter(states != "American Samoa") %>% 
+  filter(states != "Puerto Rico") %>% 
+  filter(states != "Guam") %>% 
+  filter(states != "Northern Mariana Islands") %>% 
+  filter(states != "U.S. Virgin Islands") %>% 
+  filter(states != "Virgin Islands")
 
 merge2
 
 ```
+
+```{r}
+merge3 <- full_join(merge1, merge2, by = "states")
+
+merge3 <- merge3 %>% 
+  filter(states != "Virgin Islands")
+
+merge3
+```
+
+```{r}
+merge3 %>% 
+  ggplot(aes(x = avg_pci, y = avg_price, label = states)) +
+  geom_point() +
+  geom_text_repel(size = 3, force = 10) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+```{r}
+top10 <- merge3 %>% 
+  arrange(desc(avg_price)) %>% 
+  slice(1:10)
+
+ggplot(top10, (aes(x = reorder(states, -avg_price), y = avg_price))) +
+  geom_bar(stat = "identity", fill = "purple2")+
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip()
+```
+```{r}
+top5 <- merge3 %>% 
+  arrange(desc(avg_price)) %>% 
+  slice(1:5)
+```
+
+```{r}
+bot5 <- merge3 %>% 
+  arrange(avg_price) %>% 
+  slice(1:5)
+```
+
+```{r}
+top5$group <- "Top 5"
+bot5$group <- "Bottom 5"
+
+mergeGroup <- rbind(top5, bot5)
+
+ggplot(mergeGroup, aes(x = reorder(states, avg_price), y = avg_price, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("Top 5" = "violetred", "Bottom 5" = "lightblue"), guide = FALSE) +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  theme(axis.text.y = element_text(size = 6))
+```
+
 
 
 
