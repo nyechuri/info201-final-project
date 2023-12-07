@@ -11,18 +11,33 @@ library(readr)
 library(dplyr)
 library(ggplot2)
 library(ggrepel)
+library(stringr)
 ```
 
-Combine two data sets into one data frame. Clean and merge it.
 
 ```{r}
 salePriceData <- read_delim("../data/Sale_Prices_State.csv")
 
 salePrice <- salePriceData %>% 
-  select(RegionName, `2020-02`) %>% 
+  select(RegionName, `2020-02`, SizeRank) %>% 
   rename(states = RegionName, price = `2020-02`)
-  salePrice
+
+head(salePrice) 
 ```
+
+```{r}
+salePrice %>% 
+  ggplot(aes(x = reorder(states, -price), y = price, fill = states)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme(axis.text.y = element_text(size = 6)) +
+  theme(legend.text = element_text(size = 7),
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(0.5, "cm")) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+
 ```{r}
 countiesData <- read_delim("../data/counties_per_capita_income.csv")
 
@@ -31,6 +46,30 @@ pciData <- countiesData %>%
 head(pciData)
 ```
 
+```{r}
+repeatStates <- pciData %>%
+  select(states) %>% 
+  distinct() %>% 
+  pull()
+
+pciData <- pciData %>%
+  mutate(pci = as.numeric(gsub("[$,]","", pci))) %>% 
+  filter(!is.na(pci)) %>% 
+  arrange(desc(pci)) %>% 
+  filter(!duplicated(states)) %>% 
+  mutate(states = factor(states, levels = repeatStates))
+
+pciData %>% 
+ggplot(aes(x = states, y = pci, fill = states)) +
+  geom_bar(stat = "identity", fill = "lightslateblue", width = 0.8) +
+  coord_flip() +
+  theme(axis.text.y = element_text(size = 6)) +
+  theme(legend.text = element_text(size = 7),
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(0.5, "cm")) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "States Per Capita Income", x = "States", y = "Per Capita Income")
+```
 
 
 ```{r}
@@ -51,6 +90,17 @@ realEstateAvg <- realEstate %>%
   filter(!is.na(avg_price))
 realEstateAvg
 ```
+
+
+```{r}
+realEstateAvg %>% 
+  ggplot(aes(x = reorder(states, avg_price), y = avg_price)) +
+  geom_bar(stat = "identity", fill = "cyan4") +
+  coord_flip() +
+  labs(title = "Average House Prices in Selected States", x = "States", y = "Average Price")
+```
+
+
 ```{r}
 merge1 <- full_join(salePrice, realEstateAvg, by = "states")
 
@@ -61,10 +111,37 @@ merge1$avg_price[!is.na(merge1$price) & !is.na(merge1$avg_price)] <-
   merge1$avg_price[!is.na(merge1$price) & !is.na(merge1$avg_price)]) / 2
 
 merge1 <- merge1 %>% 
-  arrange(states) %>% 
-  select(states, avg_price)
+  arrange(states) %>%
+  select(states, avg_price) %>% 
+  arrange(desc(avg_price)) %>%
+  filter(states != "American Samoa") %>% 
+  filter(states != "Puerto Rico") %>% 
+  filter(states != "Guam") %>% 
+  filter(states != "Northern Mariana Islands") %>% 
+  filter(states != "U.S. Virgin Islands") %>% 
+  filter(states != "Virgin Islands")
 
-merge1
+head(merge1)
+```
+
+```{r}
+merge1 %>%
+  mutate(states = factor(states, levels = states[order(avg_price)])) %>% 
+  ggplot(aes(x = states, y = avg_price)) +
+  geom_bar(stat = "identity", fill = "springgreen3", width = 0.8) +
+  coord_flip() +
+  theme(axis.text.y = element_text(size = 6)) +
+  theme(legend.text = element_text(size = 7),
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(0.5, "cm")) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Average Price for Houses Across the U.S", x = "States", y  = "Average Price")
+```
+```{r}
+merge1 <- merge1 %>% 
+  mutate(price_category  = ifelse(avg_price < 200000, "Low",
+                               ifelse(avg_price < 400000, "Medium", "High")))
+head(merge1)
 ```
 
 
@@ -83,9 +160,23 @@ merge2 <- merge2 %>%
   filter(states != "U.S. Virgin Islands") %>% 
   filter(states != "Virgin Islands")
 
-merge2
-
+head(merge2)
 ```
+
+```{r}
+merge2 %>%
+  mutate(states = factor(states, levels = states[order(avg_pci)])) %>% 
+  ggplot(aes(x = states, y = avg_pci)) +
+  geom_bar(stat = "identity", fill = "honeydew3", width = 0.8) +
+  coord_flip() +
+  theme(axis.text.y = element_text(size = 6)) +
+  theme(legend.text = element_text(size = 7),
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(0.5, "cm")) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Average Per Capita Income in the States", x = "States", y  = "Average PCI")
+```
+
 
 ```{r}
 merge3 <- full_join(merge1, merge2, by = "states")
@@ -93,7 +184,7 @@ merge3 <- full_join(merge1, merge2, by = "states")
 merge3 <- merge3 %>% 
   filter(states != "Virgin Islands")
 
-merge3
+head(merge3)
 ```
 
 ```{r}
@@ -101,7 +192,8 @@ merge3 %>%
   ggplot(aes(x = avg_pci, y = avg_price, label = states)) +
   geom_point() +
   geom_text_repel(size = 3, force = 10) +
-  scale_y_continuous(labels = scales::comma)
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Minimal Income to Afford a House in Different States", x = "Average PCI", y = "Average Price")
 ```
 
 ```{r}
@@ -112,8 +204,10 @@ top10 <- merge3 %>%
 ggplot(top10, (aes(x = reorder(states, -avg_price), y = avg_price))) +
   geom_bar(stat = "identity", fill = "purple2")+
   scale_y_continuous(labels = scales::comma) +
-  coord_flip()
+  coord_flip() +
+  labs(title = "Top 10 Most Expensive States to Buy a House", x = "Average Price", y = "States")
 ```
+
 ```{r}
 top5 <- merge3 %>% 
   arrange(desc(avg_price)) %>% 
@@ -137,11 +231,39 @@ ggplot(mergeGroup, aes(x = reorder(states, avg_price), y = avg_price, fill = gro
   scale_fill_manual(values = c("Top 5" = "violetred", "Bottom 5" = "lightblue"), guide = FALSE) +
   scale_y_continuous(labels = scales::comma) +
   coord_flip() +
-  theme(axis.text.y = element_text(size = 6))
+  theme(axis.text.y = element_text(size = 6)) +
+  labs(title = "Income Difference Between Top 5 and Bottom 5", x = "States", y = "Average Price")
 ```
 
 
+```{r}
+regions <- function(states) {
+  ifelse(states %in% c("Washington", "Orgeon", "California", "Nevada"), "West Coast",
+         ifelse(states %in% c("Montana", "Idaho", "Wyoming", "Utah", "Colorado", "Arizona", "New Mexico"), "Mountain Coast",
+                ifelse(states %in% c("North Dakota", "South Dakota", "Nebraska", "Kansas", "Oklahoma", "Texas", "Minnesota", "Iowa", "Missouri", "Arkansas", "Louisiana", "Wisconsin", "Illinois", "Tennessee", "Mississippi", "Alabama", "Kentucky"), "Midwest Coast",
+                       ifelse(states %in% c("Michigan", "Indiana", "Ohio", "West Virginia", "Virginia", "Georgia", "Florida", "North Carolina", "South Carolina", "Pennsylvania", "New York", "Massachusetts", "Vermont", "New Hampshire", "Maine", "Rhode Island", "Conneticut", "New Jersey", "Delaware", "Maryland", "District of Columbia"), "East Coast", "Other"))))
+}
+
+merge3 <- merge3 %>% 
+  mutate(region = regions(states))
+
+regionData <- merge3 %>% 
+  group_by(region) %>% 
+  summarize(avg_price = mean(avg_price, na.rm = TRUE))
+
+regionData %>% 
+ggplot(aes(x = region, y = avg_price, color = region)) +
+  geom_bar(stat = "identity", fill = "azure2", width = 0.5) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Average Price in Different Coasts", x = "Region", y = "Average Price")
+  
+```
 
 
+```{r}
+finalData <- merge3 %>% 
+  select(states, avg_pci, avg_price, price_category)
 
-Create additonal columns. One new categorical variable, one new continuos/numerical variable, one summarization data frame.
+head(finalData)
+```
+
